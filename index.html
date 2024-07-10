@@ -183,7 +183,7 @@ document.getElementById('saveButton').addEventListener('click', function() {
     link.download = "converted_text_to_pdf.txt"; // Default filename
     link.click();
 
-    // Clean up
+
     URL.revokeObjectURL(link.href);
 });
 
