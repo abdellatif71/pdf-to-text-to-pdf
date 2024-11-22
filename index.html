@@ -1,0 +1,330 @@
+
+
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PDF to Text Converter</title>
+  <script src="https://cdn.ckeditor.com/ckeditor5/33.0.0/classic/ckeditor.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.4.0/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.4.0/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.3/jspdf.umd.min.js"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+  <script src="js/jspdf.umd.min.js"></script>
+
+
+<style>
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    text-align: center;
+    background-color: #8bbaec;
+  }
+  /* Your existing CSS styles */
+
+.button {
+  margin: 5px;
+  padding: 10px 20px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+/* Your existing CSS styles */
+
+  input[type="file"] {
+    margin-bottom: 10px;
+  }
+  #editor {
+    width: 80%;
+    height: 300px;
+    margin: 20px auto;
+    direction: rtl; /* Right-to-left direction */
+  }
+  #textOutput {
+    width: 80%;
+    height: 300px;
+    margin: 20px auto;
+    direction: rtl; /* Right-to-left direction */
+  }
+  .button {
+    margin: 5px;
+    padding: 10px 20px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+  }
+  #languageButton {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+  }
+  .languageSelection {
+    display: none;
+    position: absolute;
+    top: 40px;
+    right: 10px;
+    background-color: #f9f9f9;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    z-index: 1;
+  }
+  .languageSelection button {
+    display: block;
+    width: 100%;
+    padding: 10px;
+    background-color: transparent;
+    border: none;
+    cursor: pointer;
+  }
+  
+  </style>
+</head>
+<body>
+    <!-- Input for PDF file, buttons, textarea, CKEditor, language selection buttons -->
+    <input type="file" id="pdfFile" accept=".pdf">
+    <button id="convertButton" class="button" data-arabic-text="تحويل" data-german-text="Konvertieren" data-english-text="Convert">تحويل</button>
+    <button id="saveButton" class="button" data-arabic-text="حفظ كملف نصي" data-german-text="Als Textdatei speichern" data-english-text="Save as Text File">حفظ كملف نصي</button>
+    <input type="file" id="fileInput" accept=".txt">
+    <button class="button" id="fileInputButton" data-arabic-text="لتحويل إلى PDF" data-german-text="In PDF konvertieren" data-english-text="To convert to PDF">To convert to PDF</button>
+    <button id="convertToPDFButton" class="button" data-arabic-text="تحويل إلى PDF" data-german-text="In PDF konvertieren" data-english-text="Convert to PDF">تحويل إلى PDF</button>
+    <textarea id="textOutput" readonly></textarea>
+    <div id="editor"></div>
+    <div id="languageButton" class="button">Sprache ändern</div>
+    <div id="languageSelection" class="languageSelection">
+      <button id="arabicButton" class="languageButton">عربى</button>
+      <button id="germanButton" class="languageButton">Deutsch</button>
+      <button id="englishButton" class="languageButton">English</button>
+    </div>
+ 
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.8.335/pdf.min.js"></script>
+  <script>
+    // Set workerSrc to resolve "Deprecated API usage" warning
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.8.335/pdf.worker.min.js';
+
+    document.getElementById('convertButton').addEventListener('click', function() {
+    var fileInput = document.getElementById('pdfFile');
+    var editor = window.editor;
+    var textOutput = document.getElementById('textOutput');
+
+    var file = fileInput.files[0];
+    if (!file) {
+        alert('الرجاء تحديد ملف PDF.');
+        return;
+    }
+
+    var reader = new FileReader();
+    reader.onload = function(event) {
+        var typedarray = new Uint8Array(event.target.result);
+        pdfjsLib.getDocument(typedarray).promise.then(function(pdf) {
+            var maxPages = pdf.numPages;
+            var countPromises = [];
+            var pagesText = []; // Array to store text for each page
+            for (var j = 1; j <= maxPages; j++) {
+                (function(pageNum) {
+                    countPromises.push(pdf.getPage(pageNum).then(function(page) {
+                        return page.getTextContent().then(function(textContent) {
+                            var pageText = '';
+                            textContent.items.forEach(function(item) {
+                                pageText += item.str + ' ';
+                            });
+                            pagesText.push(pageText.trim()); // Store text for each page, trim to remove leading/trailing whitespaces
+                        });
+                    }));
+                })(j);
+            }
+            Promise.all(countPromises).then(function() {
+                var fullText = pagesText.join('\n\n'); // Concatenate text from all pages
+                textOutput.value = fullText; // Display full text in textarea
+
+                // Remove HTML tags from the content copied from CKEditor using jQuery
+                var strippedText = jQuery('<div>').html(fullText).text();
+                editor.setData(strippedText); // Set data to CKEditor
+            });
+        }).catch(function(reason) {
+            console.error(reason);
+        });
+    };
+    reader.readAsArrayBuffer(file);
+});
+
+document.getElementById('saveButton').addEventListener('click', function() {
+    var editor = window.editor;
+    var content = editor.getData(); // Get content from CKEditor
+
+    // Remove HTML tags from the content
+    var strippedText = content.replace(/<\/?[^>]+(>|$)/g, '');
+
+    // Split the text into lines
+    var lines = strippedText.split('\n\n');
+
+    // Join every two lines with a new line character
+    var modifiedText = lines.reduce((accumulator, currentValue, index) => {
+        if (index % 2 === 0) {
+            // Add a new line character after every second line
+            return accumulator + currentValue + '\n';
+        } else {
+            return accumulator + currentValue;
+        }
+    }, '');
+
+    // Create a new Blob object with modified text content
+    var blob = new Blob([modifiedText], { type: "text/plain;charset=utf-8" });
+
+    // Create a temporary anchor element to trigger the download
+    var link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = "converted_text_to_pdf.txt"; // Default filename
+    link.click();
+
+    // Clean up
+    URL.revokeObjectURL(link.href);
+});
+
+
+
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Ensure compatibility with previous versions
+    window.jsPDF = window.jspdf.jsPDF;
+
+    // Function to convert text content or file to PDF
+    function convertToPDF(content) {
+    if (content instanceof File) {
+        // File selected via input
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            const text = event.target.result;
+            const doc = new window.jsPDF();
+            // Specify an Arabic font
+            doc.setFont('Arial');
+            doc.setFontSize(12);
+            const textLines = text.split(/\r?\n/); // Split text into lines
+            let y = 10; // Initial y position
+            textLines.forEach(line => {
+                doc.text(line, 10, y);
+                y += 10; // Increase y position for the next line
+            });
+            doc.save("text_to_pdf.pdf");
+        };
+        reader.readAsText(content);
+    } else if (typeof content === 'string') {
+        // Content passed directly
+        const doc = new window.jsPDF();
+        // Specify an Arabic font
+        doc.setFont('Arial');
+        doc.setFontSize(12);
+        const textLines = content.split(/\r?\n/); // Split text into lines
+        let y = 10; // Initial y position
+        textLines.forEach(line => {
+            doc.text(line, 10, y);
+            y += 10; // Increase y position for the next line
+        });
+        doc.save("converted_text.pdf");
+    } else {
+        console.error("Invalid content type.");
+    }
+}
+
+
+    // Event listener for file input change
+    document.getElementById('fileInput').addEventListener('change', function(event) {
+        console.log("File selected:", event.target.files[0]); // Debugging statement
+        const file = event.target.files[0];
+        if (!file) {
+            alert("Please select a file.");
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            const text = event.target.result;
+            convertToPDF(text); // Pass text content to convertToPDF function
+        };
+        reader.readAsText(file);
+    });
+});
+
+
+    // Initialize CKEditor
+    ClassicEditor
+      .create(document.querySelector('#editor'))
+      .then(editor => {
+        window.editor = editor;
+      })
+      .catch(error => {
+        console.error(error);
+      });
+       // Language Selection Buttons functionality
+    // Change Language Button functionality
+    document.getElementById('languageButton').addEventListener('click', function() {
+      var selection = document.getElementById('languageSelection');
+      if (selection.style.display === 'none' || selection.style.display === '') {
+        selection.style.display = 'block';
+      } else {
+        selection.style.display = 'none';
+      }
+    });
+
+    // Language Selection Buttons functionality
+    var languageButtons = document.querySelectorAll('.languageButton');
+    languageButtons.forEach(function(button) {
+      button.addEventListener('click', function() {
+        var language = this.textContent;
+        var buttons = document.querySelectorAll('.button');
+        buttons.forEach(function(btn) {
+          switch(language) {
+            case 'عربى':
+              btn.textContent = btn.dataset.arabicText;
+              break;
+            case 'Deutsch':
+              btn.textContent = btn.dataset.germanText;
+              break;
+            case 'English':
+              btn.textContent = btn.dataset.englishText;
+              break;
+          }
+        });
+      });
+    });
+// Function to convert CKEditor content to PDF
+document.getElementById('convertToPDFButton').addEventListener('click', function() {
+      var editor = window.editor;
+      var content = editor.getData(); // Get content from CKEditor
+      convertToPDF(content); // Convert CKEditor content to PDF
+      // Function to convert CKEditor content to PDF
+      function convertToPDF(content) {
+    const doc = new window.jsPDF();
+    const totalPagesExp = /<span class="cke-pagebreak"><\/span>/gi; // Regular expression to identify page breaks
+    const pageContents = content.split(totalPagesExp); // Split content into pages based on page breaks
+    let y = 10; // Initial y position
+
+    pageContents.forEach((pageContent, index) => {
+        if (index > 0) {
+            doc.addPage(); // Add a new page for each page of content
+            y = 10; // Reset y position for new page
+        }
+        
+        const plainTextContent = $('<div>').html(pageContent).text(); // Remove HTML tags
+        doc.text(plainTextContent, 10, y); // Add the content to the PDF
+    });
+
+    // Save the PDF
+    doc.save("ckeditor_content.pdf");
+}
+
+
+
+
+    });
+
+
+
+  </script>
+</body>
+</html>
